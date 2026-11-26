@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>LUXE — The 3D Mall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0c0b0a;
+    --panel:#15130f;
+    --panel-2:#1d1a14;
+    --gold:#c6a664;
+    --gold-dim:#8a7343;
+    --ivory:#f3ede1;
+    --ivory-dim:#b7ae9c;
+    --line:rgba(198,166,100,0.25);
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+    background:var(--ink); color:var(--ivory);
+    font-family:'Jost',sans-serif;
+    -webkit-user-select:none; user-select:none;
+    touch-action:none;
+  }
+  #scene{position:fixed; inset:0; display:block;}
+
+  .serif{font-family:'Cormorant Garamond',serif;}
+
+  /* ---------- Loading ---------- */
+  #loading{
+    position:fixed; inset:0; z-index:50; background:var(--ink);
+    display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px;
+  }
+  #loading .mark{font-family:'Cormorant Garamond',serif; font-size:clamp(36px,8vw,56px); letter-spacing:0.18em; color:var(--gold); font-weight:600;}
+  #loading .sub{font-size:13px; color:var(--ivory-dim); letter-spacing:0.08em;}
+  .spin{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--gold);animation:spin 0.9s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ---------- Entry doors ---------- */
+  #doors{position:fixed; inset:0; z-index:40; display:flex; pointer-events:none;}
+  #doors .leaf{flex:1; background:linear-gradient(180deg,#1a1712,#0c0b0a); position:relative; transition:transform 1.4s cubic-bezier(.76,0,.24,1);}
+  #doors .leaf::after{content:"";position:absolute; top:0; bottom:0; width:1px; background:var(--line);}
+  #doors .leaf.left::after{right:0;}
+  #doors .leaf.right::after{left:0;}
+  #doors.open .leaf.left{transform:translateX(-100%);}
+  #doors.open .leaf.right{transform:translateX(100%);}
+  #welcome{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px; text-align:center; transition:opacity .6s ease;}
+  #welcome .w1{font-family:'Cormorant Garamond',serif; font-size:clamp(28px,6vw,46px); color:var(--ivory); letter-spacing:0.06em;}
+  #welcome .w2{font-family:'Cormorant Garamond',serif; font-size:clamp(14px,3vw,18px); color:var(--gold); letter-spacing:0.3em; font-weight:500;}
+  #doors.hide{display:none;}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed; top:0; left:0; right:0; z-index:20; display:flex; align-items:center; justify-content:space-between; padding:16px 18px; pointer-events:none;}
+  #hud > *{pointer-events:auto;}
+  .brand{font-family:'Cormorant Garamond',serif; font-size:20px; letter-spacing:0.22em; color:var(--gold); font-weight:600;}
+  .hud-right{display:flex; align-items:center; gap:10px;}
+  .pill{
+    background:rgba(21,19,15,0.72); border:1px solid var(--line); backdrop-filter:blur(6px);
+    color:var(--ivory); border-radius:999px; padding:9px 14px; font-size:13px; display:flex; align-items:center; gap:8px; cursor:pointer;
+  }
+  .pill svg{width:16px;height:16px; display:block;}
+  #cartCount{background:var(--gold); color:#1a1712; font-size:11px; font-weight:600; border-radius:999px; min-width:18px; height:18px; display:flex; align-items:center; justify-content:center; padding:0 5px;}
+
+  /* ---------- Crosshair ---------- */
+  #crosshair{position:fixed; top:50%; left:50%; width:8px; height:8px; transform:translate(-50%,-50%); border-radius:50%; border:1.5px solid var(--gold); z-index:15; transition:transform .15s ease, background .15s ease;}
+  #crosshair.hit{transform:translate(-50%,-50%) scale(1.8); background:var(--gold);}
+
+  /* ---------- Hint ---------- */
+  #hint{position:fixed; bottom:118px; left:50%; transform:translateX(-50%); z-index:18; background:rgba(12,11,10,0.7); border:1px solid var(--line); padding:9px 16px; border-radius:999px; font-size:12.5px; color:var(--ivory-dim); letter-spacing:0.02em; transition:opacity .5s ease;}
+
+  /* ---------- Aisle label ---------- */
+  #aisle{position:fixed; top:64px; left:50%; transform:translateX(-50%); z-index:18; font-family:'Cormorant Garamond',serif; font-size:15px; letter-spacing:0.25em; color:var(--gold); opacity:0; transition:opacity .4s ease;}
+  #aisle.show{opacity:1;}
+
+  /* ---------- Joystick (touch) ---------- */
+  #joyzone{position:fixed; left:0; bottom:0; width:46%; height:46%; z-index:16;}
+  #joystick{position:fixed; width:104px; height:104px; border-radius:50%; border:1.5px solid var(--line); background:rgba(21,19,15,0.55); display:none; z-index:17;}
+  #joystick .nub{position:absolute; width:46px; height:46px; border-radius:50%; background:var(--gold); opacity:0.85; top:29px; left:29px;}
+  #lookzone{position:fixed; right:0; bottom:0; width:54%; height:46%; z-index:16;}
+
+  /* ---------- Bottom controls ---------- */
+  #bottombar{position:fixed; bottom:16px; left:50%; transform:translateX(-50%); z-index:20; display:flex; gap:10px;}
+
+  /* ---------- Sheets / Modals ---------- */
+  .scrim{position:fixed; inset:0; background:rgba(5,4,3,0.55); z-index:30; opacity:0; pointer-events:none; transition:opacity .25s ease;}
+  .scrim.show{opacity:1; pointer-events:auto;}
+  .sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:31; background:var(--panel);
+    border-top:1px solid var(--line); border-radius:18px 18px 0 0; max-height:82vh; overflow-y:auto;
+    transform:translateY(100%); transition:transform .32s cubic-bezier(.22,1,.36,1);
+    padding:20px 20px calc(24px + env(safe-area-inset-bottom,0px));
+  }
+  .sheet.show{transform:translateY(0);}
+  .sheet-handle{width:36px; height:4px; background:var(--line); border-radius:4px; margin:0 auto 16px;}
+  .sheet-close{position:absolute; top:16px; right:18px; width:30px; height:30px; border-radius:50%; background:var(--panel-2); display:flex; align-items:center; justify-content:center; color:var(--ivory-dim); cursor:pointer; font-size:16px;}
+
+  /* product sheet */
+  #pImg{width:100%; aspect-ratio:1/1; max-height:34vh; object-fit:cover; border-radius:12px; background:var(--panel-2); margin-bottom:14px;}
+  #pCat{font-size:11.5px; letter-spacing:0.14em; color:var(--gold-dim); margin-bottom:4px;}
+  #pName{font-family:'Cormorant Garamond',serif; font-size:24px; color:var(--ivory); margin:0 0 6px;}
+  #pPrice{font-size:18px; color:var(--gold); margin-bottom:12px; font-weight:500;}
+  #pDesc{font-size:13.5px; line-height:1.55; color:var(--ivory-dim); margin-bottom:12px;}
+  #pFeatures{list-style:none; padding:0; margin:0 0 18px; display:flex; flex-direction:column; gap:6px;}
+  #pFeatures li{font-size:13px; color:var(--ivory-dim); padding-left:16px; position:relative;}
+  #pFeatures li::before{content:""; position:absolute; left:0; top:7px; width:5px; height:5px; border-radius:50%; background:var(--gold);}
+  .qtyrow{display:flex; align-items:center; gap:14px; margin-bottom:16px;}
+  .qtybtn{width:34px;height:34px;border-radius:50%;border:1px solid var(--line); background:var(--panel-2); color:var(--ivory); font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer;}
+  .btnrow{display:flex; gap:10px;}
+  .btn{flex:1; border:none; border-radius:10px; padding:13px; font-size:14px; font-weight:500; letter-spacing:0.02em; cursor:pointer; font-family:'Jost',sans-serif;}
+  .btn-ghost{background:transparent; border:1px solid var(--gold-dim); color:var(--gold);}
+  .btn-gold{background:var(--gold); color:#1a1712;}
+
+  /* cart sheet */
+  .cartrow{display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line);}
+  .cartrow img{width:52px;height:52px;border-radius:8px;object-fit:cover; background:var(--panel-2); flex-shrink:0;}
+  .cartrow .ci{flex:1; min-width:0;}
+  .cartrow .ci .n{font-size:13.5px; color:var(--ivory);}
+  .cartrow .ci .p{font-size:12px; color:var(--ivory-dim); margin-top:2px;}
+  .cartrow .rm{color:var(--ivory-dim); font-size:12px; text-decoration:underline; cursor:pointer; flex-shrink:0;}
+  #cartEmpty{text-align:center; color:var(--ivory-dim); font-size:13.5px; padding:30px 0;}
+  #cartTotalRow{display:flex; justify-content:space-between; align-items:baseline; padding:16px 0; font-family:'Cormorant Garamond',serif;}
+  #cartTotalRow .l{font-size:14px; color:var(--ivory-dim); letter-spacing:0.08em;}
+  #cartTotalRow .v{font-size:24px; color:var(--gold);}
+  #upiNote{font-size:11px; color:var(--ivory-dim); text-align:center; margin-top:10px; line-height:1.5;}
+
+  /* ---------- Grid view ---------- */
+  #gridView{position:fixed; inset:0; z-index:25; background:var(--ink); overflow-y:auto; display:none;}
+  #gridView.show{display:block;}
+  #gridHeader{position:sticky; top:0; background:var(--ink); z-index:2; padding:18px 18px 12px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line);}
+  #gridTitle{font-family:'Cormorant Garamond',serif; font-size:22px; color:var(--gold); letter-spacing:0.1em;}
+  #gridGrid{display:grid; grid-template-columns:repeat(2,1fr); gap:14px; padding:18px;}
+  .gcard{background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; display:flex; flex-direction:column;}
+  .gcard img{width:100%; aspect-ratio:1/1; object-fit:cover; background:var(--panel-2);}
+  .gcard .gc-body{padding:10px 12px 12px; display:flex; flex-direction:column; gap:6px; flex:1;}
+  .gcard .gcat{font-size:10px; letter-spacing:0.1em; color:var(--gold-dim);}
+  .gcard .gname{font-size:13px; color:var(--ivory); line-height:1.3;}
+  .gcard .gprice{font-size:13.5px; color:var(--gold); margin-top:auto;}
+  .gcard .gadd{margin-top:6px; border:1px solid var(--gold-dim); background:transparent; color:var(--gold); font-size:12px; padding:7px; border-radius:7px; cursor:pointer; font-family:'Jost',sans-serif;}
+
+  @media (min-width:720px){
+    #gridGrid{grid-template-columns:repeat(4,1fr);}
+    .sheet{left:50%; right:auto; width:420px; transform:translate(-50%,100%); border-radius:18px;}
+    .sheet.show{transform:translate(-50%,0);}
+    #joyzone, #lookzone, #joystick{display:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<div id="loading"><div class="mark">LUXE</div><div class="spin"></div><div class="sub">Opening the mall…</div></div>
+
+<div id="doors">
+  <div class="leaf left"></div>
+  <div class="leaf right"></div>
+  <div id="welcome">
+    <div class="w1 serif">Welcome to</div>
+    <div class="w2">LUXE</div>
+  </div>
+</div>
+
+<div id="hud">
+  <div class="brand">LUXE</div>
+  <div class="hud-right">
+    <div class="pill" id="gridBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Grid</span>
+    </div>
+    <div class="pill" id="cartBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      <span id="cartTotalMini">₹0</span>
+      <span id="cartCount">0</span>
+    </div>
+  </div>
+</div>
+
+<div id="aisle" class="serif"></div>
+<div id="crosshair"></div>
+<div id="hint">Drag to look · move to walk · tap a product</div>
+
+<div id="joyzone"></div>
+<div id="joystick"><div class="nub"></div></div>
+<div id="lookzone"></div>
+
+<!-- Product Sheet -->
+<div class="scrim" id="pScrim"></div>
+<div class="sheet" id="productSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-close" id="pClose">✕</div>
+  <img id="pImg" alt="">
+  <div id="pCat"></div>
+  <div id="pName" class="serif"></div>
+  <div id="pPrice"></div>
+  <div id="pDesc"></div>
+  <ul id="pFeatures"></ul>
+  <div class="qtyrow">
+    <div class="qtybtn" id="qMinus">−</div>
+    <div id="qVal">1</div>
+    <div class="qtybtn" id="qPlus">+</div>
+  </div>
+  <div class="btnrow">
+    <button class="btn btn-ghost" id="addCartBtn">Add to Cart</button>
+    <button class="btn btn-gold" id="buyNowBtn">Buy Now</button>
+  </div>
+</div>
+
+<!-- Cart Sheet -->
+<div class="scrim" id="cScrim"></div>
+<div class="sheet" id="cartSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-close" id="cClose">✕</div>
+  <div id="pName" class="serif" style="margin-bottom:10px;">Your Cart</div>
+  <div id="cartList"></div>
+  <div id="cartEmpty" style="display:none;">Your cart is empty.</div>
+  <div id="cartTotalRow"><span class="l">TOTAL</span><span class="v" id="cartTotalVal">₹0</span></div>
+  <a class="btn btn-gold" id="payBtn" style="display:block; text-align:center; text-decoration:none;">Pay with UPI</a>
+  <div id="upiNote">Demo-level payment — not yet verified server-side. Confirm orders manually until a payment gateway is added.</div>
+</div>
+
+<!-- Grid View -->
+<div id="gridView">
+  <div id="gridHeader">
+    <div id="gridTitle">All Products</div>
+    <div class="pill" id="gridBack">Back to 3D</div>
+  </div>
+  <div id="gridGrid"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ================= CONFIG ================= */
+const CONFIG = {
+  SB_URL: "https://gmilauufspokphhkjzvg.supabase.co",
+  SB_KEY: "sb_publishable__rlbHHPEXg0kgrgvM-6TgQ_nzUUzwCR",
+  UPI_ID: "7579629567@fam"
+};
+
+/* ================= DEMO FALLBACK PRODUCTS ================= */
+function placeholderImg(label, bg){
+  const c = document.createElement('canvas'); c.width = 400; c.height = 400;
+  const ctx = c.getContext('2d');
+  const g = ctx.createLinearGradient(0,0,400,400);
+  g.addColorStop(0, bg[0]); g.addColorStop(1, bg[1]);
+  ctx.fillStyle = g; ctx.fillRect(0,0,400,400);
+  ctx.fillStyle = 'rgba(243,237,225,0.9)';
+  ctx.font = '600 120px Georgia'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(label, 200, 210);
+  return c.toDataURL();
+}
+const DEMO_PRODUCTS = [
+  {id:'d1', name:'Velvet Matte Lipstick', category:'Makeup', price:590, description:'A weightless matte lipstick in a deep rose shade, built to last through a full day without drying the lips.', features:['8hr wear','Non-drying formula','Cruelty-free'], images:[placeholderImg('L', ['#5a2a2a','#2a1414'])]},
+  {id:'d2', name:'Silk Foundation SPF 30', category:'Makeup', price:1290, description:'Buildable medium coverage with a natural satin finish and daily sun protection.', features:['SPF 30','12 shades','Non-comedogenic'], images:[placeholderImg('F', ['#4a3b2a','#241d14'])]},
+  {id:'d3', name:'Hydra Glow Serum', category:'Skincare', price:990, description:'A lightweight hyaluronic acid serum that locks in moisture and restores a dewy glow.', features:['Hyaluronic acid','Fragrance-free','For all skin types'], images:[placeholderImg('S', ['#2a3b32','#14241d'])]},
+  {id:'d4', name:'CC Cream — Natural Beige', category:'Skincare', price:290, description:'A colour-correcting cream that evens tone, hydrates and softly perfects skin in one step.', features:['Evens tone','Lightweight','SPF 20'], images:[placeholderImg('CC', ['#3b2f2a','#241d16'])]},
+  {id:'d5', name:'Rose Oud Eau de Parfum', category:'Fragrance', price:2450, description:'A warm, woody fragrance layering Bulgarian rose over smoked oud for a long-lasting signature scent.', features:['50ml','8–10hr longevity','Unisex'], images:[placeholderImg('P', ['#3b2a3b','#241424'])]},
+  {id:'d6', name:'Citrus Bloom Body Mist', category:'Fragrance', price:450, description:'A fresh, everyday mist with notes of bergamot, neroli and white musk.', features:['150ml','Light layering scent'], images:[placeholderImg('M', ['#3b3a2a','#242314'])]}
+];
+
+/* ================= STATE ================= */
+let PRODUCTS = [];
+let CART = [];
+try { CART = JSON.parse(localStorage.getItem('luxe_cart') || '[]'); } catch(e){ CART = []; }
+let activeProduct = null, activeQty = 1;
+
+/* ================= LOAD PRODUCTS ================= */
+async function loadProducts(){
+  try{
+    if(!CONFIG.SB_URL || !CONFIG.SB_KEY) throw new Error('no config');
+    const res = await fetch(`${CONFIG.SB_URL}/rest/v1/products?select=*`, {
+      headers: { apikey: CONFIG.SB_KEY, Authorization: `Bearer ${CONFIG.SB_KEY}` }
+    });
+    if(!res.ok) throw new Error('bad response');
+    const data = await res.json();
+    if(!Array.isArray(data) || data.length === 0) throw new Error('empty');
+    PRODUCTS = data.map(normalizeProduct);
+  }catch(e){
+    PRODUCTS = DEMO_PRODUCTS.map(normalizeProduct);
+  }
+}
+function normalizeProduct(p){
+  let images = p.images;
+  if(typeof images === 'string') images = images.split(',').map(s=>s.trim()).filter(Boolean);
+  if(!Array.isArray(images) || images.length === 0) images = [placeholderImg((p.name||'?').charAt(0).toUpperCase(), ['#3b2f2a','#1d1712'])];
+  let features = p.features;
+  if(typeof features === 'string') features = features.split(',').map(s=>s.trim()).filter(Boolean);
+  if(!Array.isArray(features)) features = [];
+  return {
+    id: p.id ?? p.name,
+    name: p.name || 'Product',
+    category: p.category || 'Featured',
+    price: Number(p.price) || 0,
+    description: p.description || '',
+    features, images,
+    shape: p.shape || 'box', color: p.color || '#c6a664'
+  };
+}
+
+/* ================= CART LOGIC ================= */
+function saveCart(){ localStorage.setItem('luxe_cart', JSON.stringify(CART)); renderCartBadge(); }
+function addToCart(p, qty){
+  const row = CART.find(r=>r.id===p.id);
+  if(row) row.qty += qty;
+  else CART.push({id:p.id, name:p.name, price:p.price, qty, image:p.images[0]});
+  saveCart();
+}
+function removeFromCart(id){ CART = CART.filter(r=>r.id!==id); saveCart(); renderCart(); }
+function cartTotal(){ return CART.reduce((s,r)=>s+r.price*r.qty,0); }
+function renderCartBadge(){
+  const n = CART.reduce((s,r)=>s+r.qty,0);
+  document.getElementById('cartCount').textContent = n;
+  document.getElementById('cartTotalMini').textContent = '₹' + cartTotal().toLocaleString('en-IN');
+}
+function renderCart(){
+  const list = document.getElementById('cartList');
+  const empty = document.getElementById('cartEmpty');
+  list.innerHTML = '';
+  if(CART.length === 0){ empty.style.display='block'; }
+  else {
+    empty.style.display='none';
+    CART.forEach(r=>{
+      const row = document.createElement('div'); row.className='cartrow';
+      row.innerHTML = `<img src="${r.image||''}"><div class="ci"><div class="n">${escapeHtml(r.name)}</div><div class="p">₹${r.price.toLocaleString('en-IN')} × ${r.qty}</div></div><div class="rm" data-id="${r.id}">Remove</div>`;
+      list.appendChild(row);
+    });
+    list.querySelectorAll('.rm').forEach(el=> el.addEventListener('click', ()=> removeFromCart(el.dataset.id)));
+  }
+  document.getElementById('cartTotalVal').textContent = '₹' + cartTotal().toLocaleString('en-IN');
+  const amount = cartTotal();
+  const link = `upi://pay?pa=${encodeURIComponent(CONFIG.UPI_ID)}&pn=${encodeURIComponent('LUXE')}&am=${amount}&cu=INR&tn=${encodeURIComponent('LUXE order')}`;
+  document.getElementById('payBtn').href = amount > 0 ? link : '#';
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ================= SHEETS ================= */
+function openSheet(sheetId, scrimId){ document.getElementById(scrimId).classList.add('show'); document.getElementById(sheetId).classList.add('show'); }
+function closeSheet(sheetId, scrimId){ document.getElementById(scrimId).classList.remove('show'); document.getElementById(sheetId).classList.remove('show'); }
+
+function openProduct(p){
+  activeProduct = p; activeQty = 1;
+  document.getElementById('pImg').src = p.images[0];
+  document.getElementById('pCat').textContent = p.category.toUpperCase();
+  document.getElementById('pName').textContent = p.name;
+  document.getElementById('pPrice').textContent = '₹' + p.price.toLocaleString('en-IN');
+  document.getElementById('pDesc').textContent = p.description;
+  const fl = document.getElementById('pFeatures'); fl.innerHTML='';
+  p.features.forEach(f=>{ const li=document.createElement('li'); li.textContent=f; fl.appendChild(li); });
+  document.getElementById('qVal').textContent = '1';
+  openSheet('productSheet','pScrim');
+  dismissHint();
+}
+document.getElementById('pClose').addEventListener('click', ()=> closeSheet('productSheet','pScrim'));
+document.getElementById('pScrim').addEventListener('click', ()=> closeSheet('productSheet','pScrim'));
+document.getElementById('qMinus').addEventListener('click', ()=>{ activeQty = Math.max(1, activeQty-1); document.getElementById('qVal').textContent = activeQty; });
+document.getElementById('qPlus').addEventListener('click', ()=>{ activeQty = Math.min(9, activeQty+1); document.getElementById('qVal').textContent = activeQty; });
+document.getElementById('addCartBtn').addEventListener('click', ()=>{ if(activeProduct){ addToCart(activeProduct, activeQty); closeSheet('productSheet','pScrim'); } });
+document.getElementById('buyNowBtn').addEventListener('click', ()=>{ if(activeProduct){ addToCart(activeProduct, activeQty); closeSheet('productSheet','pScrim'); renderCart(); openSheet('cartSheet','cScrim'); } });
+
+document.getElementById('cartBtn').addEventListener('click', ()=>{ renderCart(); openSheet('cartSheet','cScrim'); });
+document.getElementById('cClose').addEventListener('click', ()=> closeSheet('cartSheet','cScrim'));
+document.getElementById('cScrim').addEventListener('click', ()=> closeSheet('cartSheet','cScrim'));
+
+/* ================= GRID VIEW ================= */
+function renderGrid(){
+  const g = document.getElementById('gridGrid'); g.innerHTML = '';
+  PRODUCTS.forEach(p=>{
+    const card = document.createElement('div'); card.className='gcard';
+    card.innerHTML = `<img src="${p.images[0]}"><div class="gc-body"><div class="gcat">${p.category.toUpperCase()}</div><div class="gname">${escapeHtml(p.name)}</div><div class="gprice">₹${p.price.toLocaleString('en-IN')}</div><button class="gadd">Add to Cart</button></div>`;
+    card.querySelector('img').addEventListener('click', ()=> openProduct(p));
+    card.querySelector('.gname').addEventListener('click', ()=> openProduct(p));
+    card.querySelector('.gadd').addEventListener('click', ()=> addToCart(p,1));
+    g.appendChild(card);
+  });
+}
+document.getElementById('gridBtn').addEventListener('click', ()=>{ renderGrid(); document.getElementById('gridView').classList.add('show'); });
+document.getElementById('gridBack').addEventListener('click', ()=> document.getElementById('gridView').classList.remove('show'));
+
+/* ================= HINT / DOORS ================= */
+function dismissHint(){ document.getElementById('hint').style.opacity = '0'; }
+window.addEventListener('load', ()=>{
+  setTimeout(()=>{
+    document.getElementById('doors').classList.add('open');
+    setTimeout(()=> document.getElementById('doors').classList.add('hide'), 1500);
+  }, 500);
+});
+
+/* ================= THREE.JS SCENE ================= */
+let scene, camera, renderer, raycaster;
+let yaw = 0, pitch = 0;
+const player = { x:0, z:9, vx:0, vz:0 };
+const CORRIDOR_HALF = 2.9;
+const productMeshes = [];
+let aisleSegments = []; // {name, zStart, zEnd}
+
+function buildScene(){
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0908);
+  scene.fog = new THREE.Fog(0x0a0908, 6, 26);
+
+  camera = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.1, 100);
+  camera.position.set(player.x, 1.65, player.z);
+
+  renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('scene'), antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+  renderer.setSize(innerWidth, innerHeight);
+
+  raycaster = new THREE.Raycaster();
+
+  scene.add(new THREE.AmbientLight(0x8a7a5c, 0.55));
+  const hemi = new THREE.HemisphereLight(0xb79f6f, 0x0a0908, 0.4);
+  scene.add(hemi);
+
+  // group products by category -> build aisles going in -Z
+  const byCat = {};
+  PRODUCTS.forEach(p=>{ (byCat[p.category] = byCat[p.category] || []).push(p); });
+  const cats = Object.keys(byCat);
+  const segLen = 7;
+  let zCursor = 5;
+  aisleSegments = [];
+  cats.forEach(cat=>{
+    const items = byCat[cat];
+    const zStart = zCursor, zEnd = zCursor - segLen;
+    aisleSegments.push({ name: cat, zStart, zEnd });
+    buildAisle(cat, items, zStart, zEnd);
+    zCursor = zEnd;
+  });
+  const mallEndZ = zCursor - 3;
+
+  buildFloor(5, mallEndZ);
+  buildEntrance();
+  buildBackWall(mallEndZ);
+}
+
+function marbleTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 512;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#e9e3d6'; ctx.fillRect(0,0,512,512);
+  for(let i=0;i<40;i++){
+    ctx.strokeStyle = `rgba(150,135,100,${0.05+Math.random()*0.08})`;
+    ctx.lineWidth = 0.5 + Math.random()*1.2;
+    ctx.beginPath();
+    let x = Math.random()*512, y=0;
+    ctx.moveTo(x,y);
+    for(let j=0;j<6;j++){ x += (Math.random()-0.5)*90; y += 512/6; ctx.lineTo(x,y); }
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+function signTexture(label){
+  const c = document.createElement('canvas'); c.width = 768; c.height = 192;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#15130f'; ctx.fillRect(0,0,768,192);
+  ctx.strokeStyle = '#c6a664'; ctx.lineWidth = 3; ctx.strokeRect(10,10,748,172);
+  ctx.fillStyle = '#c6a664'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font = '600 76px Georgia'; ctx.fillText(label, 384, 100);
+  return new THREE.CanvasTexture(c);
+}
+
+function buildFloor(zFront, zBack){
+  const len = zFront - zBack;
+  const geo = new THREE.PlaneGeometry(CORRIDOR_HALF*2, len);
+  const tex = marbleTexture();
+  tex.repeat.set(2, len/4);
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.35, metalness: 0.15 });
+  const floor = new THREE.Mesh(geo, mat);
+  floor.rotation.x = -Math.PI/2;
+  floor.position.set(0, 0, (zFront+zBack)/2);
+  scene.add(floor);
+
+  const ceilGeo = new THREE.PlaneGeometry(CORRIDOR_HALF*2+1, len);
+  const ceilMat = new THREE.MeshStandardMaterial({ color: 0x100e0b, roughness: 0.9 });
+  const ceil = new THREE.Mesh(ceilGeo, ceilMat);
+  ceil.rotation.x = Math.PI/2;
+  ceil.position.set(0, 4.2, (zFront+zBack)/2);
+  scene.add(ceil);
+}
+
+function buildEntrance(){
+  const g = new THREE.Group();
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x8a7343, roughness: 0.4, metalness: 0.5 });
+  const pillarGeo = new THREE.BoxGeometry(0.25, 4.2, 0.25);
+  [-CORRIDOR_HALF, CORRIDOR_HALF].forEach(x=>{
+    const p = new THREE.Mesh(pillarGeo, frameMat);
+    p.position.set(x, 2.1, 5.3);
+    g.add(p);
+  });
+  scene.add(g);
+}
+
+function buildBackWall(z){
+  const geo = new THREE.PlaneGeometry(CORRIDOR_HALF*2+1, 4.2);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x15130f, roughness: 0.8 });
+  const wall = new THREE.Mesh(geo, mat);
+  wall.position.set(0, 2.1, z - 1.8);
+  scene.add(wall);
+}
+
+function buildAisle(category, items, zStart, zEnd){
+  // golden hanging light
+  const light = new THREE.PointLight(0xffd9a0, 1.1, 10, 2);
+  light.position.set(0, 3.6, (zStart+zEnd)/2);
+  scene.add(light);
+
+  // signboard
+  const signGeo = new THREE.PlaneGeometry(2.6, 0.65);
+  const signMat = new THREE.MeshBasicMaterial({ map: signTexture(category), transparent: true });
+  const sign = new THREE.Mesh(signGeo, signMat);
+  sign.position.set(0, 3.1, (zStart+zEnd)/2);
+  sign.userData.aisleName = category;
+  sign.userData.zStart = zStart; sign.userData.zEnd = zEnd;
+  scene.add(sign);
+
+  // shelves: wooden back panel both sides
+  const shelfMat = new THREE.MeshStandardMaterial({ color: 0x2a2015, roughness: 0.7 });
+  [-1,1].forEach(side=>{
+    const shelfGeo = new THREE.BoxGeometry(0.18, 2.4, Math.abs(zStart-zEnd)-0.6);
+    const shelf = new THREE.Mesh(shelfGeo, shelfMat);
+    shelf.position.set(side*(CORRIDOR_HALF-0.1), 1.2, (zStart+zEnd)/2);
+    scene.add(shelf);
+  });
+
+  // place products alternating sides
+  const spacing = (Math.abs(zStart-zEnd)-1) / Math.max(1, Math.ceil(items.length/2));
+  items.forEach((p, i)=>{
+    const side = i % 2 === 0 ? -1 : 1;
+    const row = Math.floor(i/2);
+    const z = zStart - 0.9 - row*spacing;
+    placeProduct(p, side*(CORRIDOR_HALF-0.42), z);
+  });
+}
+
+function placeProduct(p, x, z){
+  const geo = new THREE.BoxGeometry(0.55, 0.55, 0.12);
+  let mat;
+  const img = p.images && p.images[0];
+  if(img){
+    const tex = new THREE.TextureLoader().load(img, undefined, undefined, ()=>{});
+    mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 });
+  } else {
+    mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(p.color||'#c6a664'), roughness: 0.5 });
+  }
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, 1.25, z);
+  mesh.rotation.y = x < 0 ? Math.PI/2 : -Math.PI/2;
+  mesh.userData.product = p;
+  scene.add(mesh);
+  productMeshes.push(mesh);
+
+  // small pedestal
+  const pedGeo = new THREE.BoxGeometry(0.5, 0.06, 0.4);
+  const pedMat = new THREE.MeshStandardMaterial({ color: 0x3a2f1f, roughness: 0.6 });
+  const ped = new THREE.Mesh(pedGeo, pedMat);
+  ped.position.set(x, 0.95, z);
+  scene.add(ped);
+}
+
+/* ================= CONTROLS ================= */
+const keys = {};
+window.addEventListener('keydown', e=>{ keys[e.code]=true; dismissHint(); });
+window.addEventListener('keyup', e=>{ keys[e.code]=false; });
+
+// desktop drag-to-look
+let dragging = false, lastX=0, lastY=0, dragMoved=false;
+const canvasEl = document.getElementById('scene');
+canvasEl.addEventListener('pointerdown', e=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; dragMoved=false; });
+window.addEventListener('pointermove', e=>{
+  if(!dragging) return;
+  const dx = e.clientX-lastX, dy = e.clientY-lastY;
+  if(Math.abs(dx)+Math.abs(dy) > 3) dragMoved = true;
+  yaw -= dx * 0.0032; pitch -= dy * 0.0032;
+  pitch = Math.max(-0.5, Math.min(0.5, pitch));
+  lastX=e.clientX; lastY=e.clientY;
+});
+window.addEventListener('pointerup', e=>{
+  if(dragging && !dragMoved) trySelect(e.clientX, e.clientY);
+  dragging = false;
+});
+
+// mobile joystick
+let joyActive=false, joyVec={x:0,y:0}, joyTouchId=null, joyOrigin={x:0,y:0};
+const joyzone = document.getElementById('joyzone');
+const joystickEl = document.getElementById('joystick');
+function isTouch(){ return 'ontouchstart' in window; }
+if(isTouch()){
+  document.getElementById('joystick').style.display='block';
+  joyzone.addEventListener('touchstart', e=>{
+    const t = e.changedTouches[0];
+    joyActive = true; joyTouchId = t.identifier;
+    joyOrigin = { x: t.clientX, y: t.clientY };
+    joystickEl.style.left = (t.clientX-52)+'px'; joystickEl.style.top = (t.clientY-52)+'px'; joystickEl.style.display='block';
+    dismissHint();
+  }, {passive:true});
+  joyzone.addEventListener('touchmove', e=>{
+    for(const t of e.changedTouches){
+      if(t.identifier!==joyTouchId) continue;
+      let dx=t.clientX-joyOrigin.x, dy=t.clientY-joyOrigin.y;
+      const max=46; const d=Math.hypot(dx,dy);
+      if(d>max){ dx=dx/d*max; dy=dy/d*max; }
+      joystickEl.querySelector('.nub').style.transform = `translate(${dx}px,${dy}px)`;
+      const dead=8;
+      joyVec.x = Math.abs(dx)<dead?0:dx/max;
+      joyVec.y = Math.abs(dy)<dead?0:dy/max;
+    }
+  }, {passive:true});
+  function joyEnd(e){
+    for(const t of e.changedTouches){ if(t.identifier===joyTouchId){ joyActive=false; joyVec={x:0,y:0}; joystickEl.style.display='none'; joystickEl.querySelector('.nub').style.transform='translate(0,0)'; } }
+  }
+  joyzone.addEventListener('touchend', joyEnd, {passive:true});
+  joyzone.addEventListener('touchcancel', joyEnd, {passive:true});
+
+  const lookzone = document.getElementById('lookzone');
+  let lookTouchId=null, lookLast={x:0,y:0}, lookMoved=false;
+  lookzone.addEventListener('touchstart', e=>{
+    const t=e.changedTouches[0]; lookTouchId=t.identifier; lookLast={x:t.clientX,y:t.clientY}; lookMoved=false;
+  }, {passive:true});
+  lookzone.addEventListener('touchmove', e=>{
+    for(const t of e.changedTouches){
+      if(t.identifier!==lookTouchId) continue;
+      const dx=t.clientX-lookLast.x, dy=t.clientY-lookLast.y;
+      if(Math.abs(dx)+Math.abs(dy)>3) lookMoved=true;
+      yaw -= dx*0.0036; pitch -= dy*0.0036; pitch=Math.max(-0.5,Math.min(0.5,pitch));
+      lookLast={x:t.clientX,y:t.clientY};
+    }
+  }, {passive:true});
+  lookzone.addEventListener('touchend', e=>{
+    for(const t of e.changedTouches){
+      if(t.identifier===lookTouchId && !lookMoved) trySelect(t.clientX, t.clientY);
+    }
+    lookTouchId=null;
+  }, {passive:true});
+}
+
+function trySelect(clientX, clientY){
+  const nx = (clientX/innerWidth)*2-1, ny = -(clientY/innerHeight)*2+1;
+  raycaster.setFromCamera({x:nx,y:ny}, camera);
+  const hits = raycaster.intersectObjects(productMeshes);
+  if(hits.length && hits[0].distance < 2.6){
+    openProduct(hits[0].object.userData.product);
+  }
+}
+
+/* ================= MOVE + RENDER LOOP ================= */
+function updateMovement(dt){
+  let ix=0, iz=0;
+  if(keys['KeyW']||keys['ArrowUp']) iz -= 1;
+  if(keys['KeyS']||keys['ArrowDown']) iz += 1;
+  if(keys['KeyA']||keys['ArrowLeft']) ix -= 1;
+  if(keys['KeyD']||keys['ArrowRight']) ix += 1;
+  if(joyVec.x||joyVec.y){ ix += joyVec.x; iz += joyVec.y; }
+
+  const len = Math.hypot(ix,iz);
+  if(len>1){ ix/=len; iz/=len; }
+
+  const speed = 2.6;
+  const forward = { x: Math.sin(yaw), z: Math.cos(yaw) };
+  const right = { x: Math.cos(yaw), z: -Math.sin(yaw) };
+  const targetVx = (forward.x*(-iz) + right.x*ix) * speed;
+  const targetVz = (forward.z*(-iz) + right.z*ix) * speed;
+
+  const accel = 6.5;
+  player.vx += (targetVx-player.vx) * Math.min(1, accel*dt);
+  player.vz += (targetVz-player.vz) * Math.min(1, accel*dt);
+
+  player.x += player.vx*dt; player.z += player.vz*dt;
+  player.x = Math.max(-(CORRIDOR_HALF-0.4), Math.min(CORRIDOR_HALF-0.4, player.x));
+
+  camera.position.set(player.x, 1.65, player.z);
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = yaw; camera.rotation.x = pitch;
+}
+
+function updateAisleLabel(){
+  const seg = aisleSegments.find(s=> player.z <= s.zStart && player.z >= s.zEnd);
+  const el = document.getElementById('aisle');
+  if(seg){ el.textContent = seg.name.toUpperCase(); el.classList.add('show'); }
+  else el.classList.remove('show');
+}
+
+function updateHover(){
+  raycaster.setFromCamera({x:0,y:0}, camera);
+  const hits = raycaster.intersectObjects(productMeshes);
+  document.getElementById('crosshair').classList.toggle('hit', hits.length>0 && hits[0].distance<2.6);
+}
+
+let lastT = performance.now();
+function animate(){
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const dt = Math.min(0.05, (now-lastT)/1000);
+  lastT = now;
+  updateMovement(dt);
+  updateAisleLabel();
+  updateHover();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ================= BOOT ================= */
+(async function boot(){
+  await loadProducts();
+  buildScene();
+  renderCartBadge();
+  document.getElementById('loading').style.display = 'none';
+  animate();
+})();
+</script>
+</body>
+</html>
