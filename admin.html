@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>LUXE Admin</title>
+<style>
+  :root{--ink:#0c0b0a;--panel:#15130f;--panel2:#1d1a14;--gold:#c6a664;--gold-dim:#8a7343;--ivory:#f3ede1;--dim:#b7ae9c;--line:rgba(198,166,100,.25);--red:#d46a5a;color-scheme:dark}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ink);color:var(--ivory);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;padding:0 0 60px}
+  .wrap{max-width:720px;margin:0 auto;padding:0 16px}
+  header{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--ink);z-index:5}
+  .brand{font-family:Georgia,serif;letter-spacing:.2em;color:var(--gold);font-size:18px}
+  h2{font-family:Georgia,serif;font-weight:600;margin:22px 0 12px;color:var(--ivory)}
+  label{display:block;font-size:12px;letter-spacing:.06em;color:var(--dim);margin:14px 0 6px}
+  input,textarea,select{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--ivory);border-radius:10px;padding:12px;font:inherit}
+  textarea{min-height:90px;resize:vertical}
+  input:focus,textarea:focus{outline:none;border-color:var(--gold)}
+  .btn{border:none;border-radius:10px;padding:12px 18px;font:inherit;font-weight:600;cursor:pointer}
+  .gold{background:var(--gold);color:#1a1712}
+  .ghost{background:transparent;border:1px solid var(--gold-dim);color:var(--gold)}
+  .danger{background:transparent;border:1px solid var(--red);color:var(--red)}
+  .btn:disabled{opacity:.5}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row>*{flex:1}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center;margin-bottom:10px}
+  .card img{width:60px;height:60px;border-radius:8px;object-fit:cover;background:var(--panel2);flex-shrink:0}
+  .card .info{flex:1;min-width:0}
+  .card .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .m{font-size:12.5px;color:var(--dim);margin-top:3px}
+  .card .acts{display:flex;gap:6px}
+  .card .acts .btn{padding:8px 12px;font-size:13px}
+  .thumbs{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .thumb{position:relative;width:84px;height:84px}
+  .thumb img{width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+  .thumb b{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;background:var(--red);color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .thumb i{position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.7);color:var(--gold);font-size:10px;font-style:normal;padding:2px 5px;border-radius:5px}
+  #msg{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--gold-dim);padding:12px 18px;border-radius:12px;z-index:20;display:none;max-width:90vw;text-align:center}
+  #msg.err{border-color:var(--red);color:#ffb4a8}
+  .hide{display:none!important}
+  .hint{font-size:12px;color:var(--dim);margin-top:5px}
+  .login{max-width:380px;margin:12vh auto 0}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="wrap login hide">
+  <div class="brand" style="font-size:26px;text-align:center;margin-bottom:6px">LUXE</div>
+  <div style="text-align:center;color:var(--dim)">Admin login</div>
+  <label>Email</label><input id="email" type="email" autocomplete="username">
+  <label>Password</label><input id="pass" type="password" autocomplete="current-password">
+  <button class="btn gold" id="loginBtn" style="width:100%;margin-top:20px">Login</button>
+</div>
+
+<div id="appView" class="hide">
+  <header>
+    <div class="brand">LUXE · ADMIN</div>
+    <div class="row" style="flex:none;gap:8px">
+      <a class="btn ghost" href="luxe-mall.html" style="text-decoration:none;padding:8px 12px;font-size:13px">Mall</a>
+      <button class="btn ghost" id="logoutBtn" style="padding:8px 12px;font-size:13px">Logout</button>
+    </div>
+  </header>
+  <div class="wrap">
+
+    <div id="listView">
+      <div class="row" style="align-items:center;margin-top:18px">
+        <h2 style="margin:0;flex:2">Products (<span id="count">0</span>)</h2>
+        <button class="btn gold" id="newBtn">+ Add product</button>
+      </div>
+      <div id="list" style="margin-top:16px"></div>
+    </div>
+
+    <div id="formView" class="hide">
+      <h2 id="formTitle">Add product</h2>
+      <label>Product name</label>
+      <input id="fName" placeholder="CC Cream - Natural Beige">
+      <label>Category (isi se mall me aisle banti hai)</label>
+      <input id="fCat" list="catList" placeholder="Makeup / Skincare / Jewellery ...">
+      <datalist id="catList"></datalist>
+      <label>Price (₹, sirf number)</label>
+      <input id="fPrice" type="text" inputmode="decimal" placeholder="290">
+      <label>Description</label>
+      <textarea id="fDesc" placeholder="Product ke baare me likho"></textarea>
+      <label>Features (har line me ek)</label>
+      <textarea id="fFeat" placeholder="SPF 20&#10;Lightweight&#10;Evens tone"></textarea>
+      <label>Photos (pehli photo shelf pe dikhegi)</label>
+      <input id="fFiles" type="file" accept="image/*" multiple>
+      <div class="hint">Photos apne aap chhoti (compress) hokar upload hongi.</div>
+      <div class="thumbs" id="thumbs"></div>
+      <div class="row" style="margin-top:24px">
+        <button class="btn ghost" id="cancelBtn">Cancel</button>
+        <button class="btn gold" id="saveBtn">Save product</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+<div id="msg"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+const SB_URL = "https://gmilauufspokphhkjzvg.supabase.co";
+const SB_KEY = "sb_publishable__rlbHHPEXg0kgrgvM-6TgQ_nzUUzwCR";
+const BUCKET = "product-images";   // setup.sql isi naam ki bucket banata hai
+
+const sb = supabase.createClient(SB_URL, SB_KEY);
+const $ = id => document.getElementById(id);
+let products = [];
+let editing = null;      // product being edited, or null for new
+let images = [];         // current photo URLs in form
+
+function toast(t, err){ const m=$('msg'); m.textContent=t; m.className=err?'err':''; m.style.display='block'; clearTimeout(toast.t); toast.t=setTimeout(()=>m.style.display='none', err?6000:2500); }
+function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function asList(v){ if(Array.isArray(v)) return v; if(typeof v==='string') return v.split(',').map(x=>x.trim()).filter(Boolean); return []; }
+
+/* ---------- auth ---------- */
+async function init(){
+  const { data:{ session } } = await sb.auth.getSession();
+  showApp(!!session);
+  if(session) loadList();
+}
+function showApp(on){ $('loginView').classList.toggle('hide', on); $('appView').classList.toggle('hide', !on); }
+$('loginBtn').onclick = async ()=>{
+  $('loginBtn').disabled = true;
+  const { error } = await sb.auth.signInWithPassword({ email:$('email').value.trim(), password:$('pass').value });
+  $('loginBtn').disabled = false;
+  if(error) return toast('Login fail: '+error.message, true);
+  showApp(true); loadList();
+};
+$('logoutBtn').onclick = async ()=>{ await sb.auth.signOut(); showApp(false); };
+
+/* ---------- list ---------- */
+async function loadList(){
+  const { data, error } = await sb.from('products').select('*').order('id',{ascending:false});
+  if(error) return toast('Products load nahi hue: '+error.message, true);
+  products = data || [];
+  $('count').textContent = products.length;
+  $('catList').innerHTML = [...new Set(products.map(p=>p.category).filter(Boolean))].map(c=>`<option value="${esc(c)}">`).join('');
+  $('list').innerHTML = products.length ? '' : '<div style="color:var(--dim);text-align:center;padding:30px">Abhi koi product nahi. "+ Add product" dabao.</div>';
+  products.forEach(p=>{
+    const img = asList(p.images)[0] || '';
+    const el = document.createElement('div'); el.className='card';
+    el.innerHTML = `<img src="${esc(img)}" alt=""><div class="info"><div class="n">${esc(p.name)}</div><div class="m">${esc(p.category||'-')} · ₹${esc(p.price)}</div></div><div class="acts"><button class="btn ghost">Edit</button><button class="btn danger">Delete</button></div>`;
+    el.querySelector('.ghost').onclick = ()=> openForm(p);
+    el.querySelector('.danger').onclick = ()=> delProduct(p);
+    $('list').appendChild(el);
+  });
+}
+async function delProduct(p){
+  if(!confirm(`"${p.name}" delete karna hai?`)) return;
+  const { error } = await sb.from('products').delete().eq('id', p.id);
+  if(error) return toast('Delete fail: '+error.message, true);
+  toast('Deleted'); loadList();
+}
+
+/* ---------- form ---------- */
+$('newBtn').onclick = ()=> openForm(null);
+$('cancelBtn').onclick = ()=> closeForm();
+function openForm(p){
+  editing = p;
+  $('formTitle').textContent = p ? 'Edit product' : 'Add product';
+  $('fName').value = p?.name || '';
+  $('fCat').value = p?.category || '';
+  $('fPrice').value = p?.price ?? '';
+  $('fDesc').value = p?.description || '';
+  $('fFeat').value = asList(p?.features).join('\n');
+  $('fFiles').value = '';
+  images = asList(p?.images).slice();
+  renderThumbs();
+  $('listView').classList.add('hide'); $('formView').classList.remove('hide');
+  scrollTo(0,0);
+}
+function closeForm(){ $('formView').classList.add('hide'); $('listView').classList.remove('hide'); }
+function renderThumbs(){
+  $('thumbs').innerHTML = '';
+  images.forEach((u,i)=>{
+    const t = document.createElement('div'); t.className='thumb';
+    t.innerHTML = `<img src="${esc(u)}" alt=""><b>×</b>${i===0?'<i>MAIN</i>':''}`;
+    t.querySelector('b').onclick = ()=>{ images.splice(i,1); renderThumbs(); };
+    $('thumbs').appendChild(t);
+  });
+}
+
+/* resize + compress before upload (phone me mall fast rahe) */
+function compress(file, max=900, q=0.82){
+  return new Promise((resolve,reject)=>{
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = ()=>{
+      const r = Math.min(1, max/Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width*r); c.height = Math.round(img.height*r);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(b=> b?resolve(b):reject(new Error('compress fail')), 'image/jpeg', q);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('Image padh nahi payi')); };
+    img.src = url;
+  });
+}
+async function uploadFiles(files){
+  const urls = [];
+  let n = 0;
+  for(const f of files){
+    n++; $('saveBtn').textContent = `Uploading ${n}/${files.length}...`;
+    const blob = await compress(f);
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.jpg`;
+    const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType:'image/jpeg', cacheControl:'31536000' });
+    if(error) throw new Error('Photo upload fail: '+error.message);
+    urls.push(sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl);
+  }
+  return urls;
+}
+
+$('saveBtn').onclick = async ()=>{
+  const name = $('fName').value.trim();
+  const price = Number($('fPrice').value.replace(/[^0-9.]/g,''));
+  if(!name) return toast('Product ka naam daalo', true);
+  if(!price) return toast('Price me sirf number daalo (jaise 290)', true);
+  const btn = $('saveBtn'); btn.disabled = true;
+  try{
+    const newUrls = await uploadFiles([...$('fFiles').files]);
+    const allImages = images.concat(newUrls);
+    const features = $('fFeat').value.split('\n').map(x=>x.trim()).filter(Boolean);
+    const base = {
+      name, price,
+      category: $('fCat').value.trim() || 'Featured',
+      description: $('fDesc').value.trim()
+    };
+    if(!editing){ base.shape = 'box'; base.color = '#c6a664'; }
+
+    let res = await write({ ...base, features, images: allImages });
+    if(res.error && /array|malformed|invalid input syntax|type/i.test(res.error.message)){
+      // agar columns text type ke hain to comma-separated text me bhejo
+      res = await write({ ...base, features: features.join(', '), images: allImages.join(',') });
+    }
+    if(res.error) throw new Error(res.error.message);
+    toast('Saved ✓'); closeForm(); loadList();
+  }catch(e){ toast(e.message, true); }
+  btn.disabled = false; btn.textContent = 'Save product';
+};
+function write(row){
+  return editing ? sb.from('products').update(row).eq('id', editing.id)
+                 : sb.from('products').insert(row);
+}
+
+init();
+</script>
+</body>
+</html>
